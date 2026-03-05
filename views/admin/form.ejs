@@ -35,6 +35,16 @@
       <input id="categories_custom" name="categories_custom" value="<%= categoriesCustom || '' %>" placeholder="misal: islami, semangat" />
     </fieldset>
 
+    <label>Series / Tema Mingguan (opsional)</label>
+    <select name="series_id">
+      <option value="">Tanpa series</option>
+      <% seriesOptions.forEach((s) => { %>
+        <option value="<%= s.id %>" <%= Number(q.series_id) === Number(s.id) ? "selected" : "" %>>
+          <%= s.weekdayLabel %> - <%= s.name %><%= s.category_hint ? ` (${s.category_hint})` : "" %>
+        </option>
+      <% }) %>
+    </select>
+
     <label>Author (opsional)</label>
     <input name="author" value="<%= q.author || '' %>" placeholder="Anon / Nama" />
 

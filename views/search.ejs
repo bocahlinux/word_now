@@ -3,33 +3,155 @@
   <p>Temukan kalimat yang pas untuk suasana hatimu hari ini.</p>
 
   <form class="searchbar" action="/search" method="get">
-    <input name="q" value="<%= query %>" placeholder="Minimal 2 huruf..." />
+    <input id="searchLiveInput" name="q" value="<%= query %>" placeholder="Minimal 2 huruf..." autocomplete="off" />
     <button type="submit">Cari</button>
   </form>
 </section>
 
+<%
+  const isTooShort = !query || query.length < 2;
+  const hasNoResult = !isTooShort && results.length === 0;
+  const hasResult = !isTooShort && results.length > 0;
+%>
+
 <section class="panel">
   <div class="panel-head">
     <h2>Hasil Pencarian</h2>
-    <div class="muted"><%= query ? `Query: "${query}"` : "Masukkan kata kunci." %></div>
+    <div id="searchQueryLabel" class="muted"><%= query ? `Query: "${query}"` : "Masukkan kata kunci." %></div>
   </div>
 
-  <% if (!query || query.length < 2) { %>
-    <div class="empty">Ketik minimal 2 huruf.</div>
-  <% } else if (results.length === 0) { %>
-    <div class="empty">Tidak ditemukan. Coba kata kunci lain yang lebih umum.</div>
-  <% } else { %>
-    <div class="grid">
-      <% results.forEach(q => { %>
-        <a class="card" href="/quote/<%= q.slug %>">
-          <div class="cat"><%= q.categories %></div>
-          <div class="text">"<%= q.text %>"</div>
+  <div id="searchEmpty" class="empty" <%= hasResult ? "hidden" : "" %>>
+    <%= isTooShort ? "Ketik minimal 2 huruf." : "Tidak ditemukan. Coba kata kunci lain yang lebih umum." %>
+  </div>
+
+  <div id="searchGrid" class="grid" <%= hasResult ? "" : "hidden" %>>
+    <% results.forEach((q) => { %>
+      <a class="card" href="/quote/<%= q.slug %>">
+        <% if (q.series_name) { %><div class="series-pill"><%= q.series_name %></div><% } %>
+        <div class="cat"><%= q.categories %></div>
+        <div class="text">"<%= q.text %>"</div>
+        <div class="meta">
+          <span><%= q.author || "Anon" %></span>
+          <span class="muted"><%= formatDate(q.created_at) %></span>
+        </div>
+        <div class="meta-stats muted">
+          <span>Like <%= q.like_count %></span>
+          <span>Bookmark <%= q.bookmark_count %></span>
+          <span>Komentar <%= q.comment_count %></span>
+        </div>
+      </a>
+    <% }) %>
+  </div>
+</section>
+
+<script>
+(() => {
+  const input = document.getElementById("searchLiveInput");
+  const grid = document.getElementById("searchGrid");
+  const empty = document.getElementById("searchEmpty");
+  const queryLabel = document.getElementById("searchQueryLabel");
+  if (!input || !grid || !empty || !queryLabel) return;
+
+  let debounceId = null;
+  let controller = null;
+
+  function escapeHtml(text) {
+    return String(text || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/\"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
+  function formatDateText(raw) {
+    const value = String(raw || "").trim();
+    const m = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (m) return `${m[3]}-${m[2]}-${m[1]}`;
+    return value || "-";
+  }
+
+  function renderState(query, results) {
+    queryLabel.textContent = query ? `Query: "${query}"` : "Masukkan kata kunci.";
+
+    if (query.length < 2) {
+      empty.hidden = false;
+      empty.textContent = "Ketik minimal 2 huruf.";
+      grid.hidden = true;
+      grid.innerHTML = "";
+      return;
+    }
+
+    if (!results.length) {
+      empty.hidden = false;
+      empty.textContent = "Tidak ditemukan. Coba kata kunci lain yang lebih umum.";
+      grid.hidden = true;
+      grid.innerHTML = "";
+      return;
+    }
+
+    const html = results.map((row) => {
+      const series = row.series_name ? `<div class="series-pill">${escapeHtml(row.series_name)}</div>` : "";
+      const slug = encodeURIComponent(row.slug || "");
+      return `
+        <a class="card" href="/quote/${slug}">
+          ${series}
+          <div class="cat">${escapeHtml(row.categories || "lainnya")}</div>
+          <div class="text">&quot;${escapeHtml(row.text || "")}&quot;</div>
           <div class="meta">
-            <span><%= q.author || "Anon" %></span>
-            <span class="muted"><%= q.created_at %></span>
+            <span>${escapeHtml(row.author || "Anon")}</span>
+            <span class="muted">${escapeHtml(formatDateText(row.created_at))}</span>
+          </div>
+          <div class="meta-stats muted">
+            <span>Like ${Number(row.like_count || 0)}</span>
+            <span>Bookmark ${Number(row.bookmark_count || 0)}</span>
+            <span>Komentar ${Number(row.comment_count || 0)}</span>
           </div>
         </a>
-      <% }) %>
-    </div>
-  <% } %>
-</section>
+      `;
+    }).join("");
+
+    grid.innerHTML = html;
+    grid.hidden = false;
+    empty.hidden = true;
+  }
+
+  async function runSearch(query) {
+    if (controller) controller.abort();
+    controller = new AbortController();
+
+    try {
+      const res = await fetch(`/api/search?q=${encodeURIComponent(query)}&limit=50`, {
+        signal: controller.signal,
+        headers: { Accept: "application/json" }
+      });
+      if (!res.ok) return;
+
+      const payload = await res.json();
+      if (input.value.trim() !== query) return;
+
+      renderState(query, payload.results || []);
+    } catch (err) {
+      if (err && err.name === "AbortError") return;
+      empty.hidden = false;
+      empty.textContent = "Gagal memuat hasil realtime.";
+      grid.hidden = true;
+      grid.innerHTML = "";
+    }
+  }
+
+  input.addEventListener("input", () => {
+    const query = input.value.trim();
+    if (debounceId) clearTimeout(debounceId);
+
+    if (query.length < 2) {
+      renderState(query, []);
+      return;
+    }
+
+    debounceId = setTimeout(() => {
+      runSearch(query);
+    }, 260);
+  });
+})();
+</script>

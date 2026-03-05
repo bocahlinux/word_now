@@ -1,5 +1,5 @@
 <%
-  const pageTitle = selectedCategory ? `Kata: ${selectedCategory}` : "Kata Hari Ini";
+  const pageTitle = selectedCategory ? `Kata: ${selectedCategory}` : "Kata YauDah";
   const analytics = analyticsUser || { topQuote: null, topCategories: [], topSearches: [] };
 %>
 
@@ -8,114 +8,265 @@
   <p>Ruang untuk menyimpan kata-kata pilihan: gombalan, motivasi, galau, lucu, atau apa pun yang ingin kamu abadikan.</p>
 
   <form class="searchbar" action="/search" method="get">
-    <input name="q" placeholder="Cari kata-kata favorit..." />
-    <button type="submit">Cari</button>
+    <input id="liveSearchInput" name="q" placeholder="Cari kata-kata favorit..." autocomplete="off" />
+    <button type="submit">Lihat Semua</button>
   </form>
-</section>
 
-<section class="panel analytics-panel">
-  <div class="panel-head">
-    <h2>Mini Analytics Pengguna</h2>
-    <span class="badge badge-user">USER BADGE</span>
-  </div>
-
-  <div class="analytics-grid">
-    <article class="analytics-card">
-      <h3>Quote Paling Sering Dilihat</h3>
-      <% if (analytics.topQuote) { %>
-        <a class="analytics-link" href="/quote/<%= analytics.topQuote.slug || ("quote-" + analytics.topQuote.id) %>">"<%= analytics.topQuote.text %>"</a>
-        <div class="muted"><%= analytics.topQuote.total %> views</div>
-      <% } else { %>
-        <div class="muted">Belum ada data view.</div>
-      <% } %>
-    </article>
-
-    <article class="analytics-card">
-      <h3>Kategori Terpopuler</h3>
-      <% if (analytics.topCategories.length) { %>
-        <div class="chips">
-          <% analytics.topCategories.forEach((row) => { %>
-            <a class="chip" href="/?category=<%= encodeURIComponent(row.category) %>"><%= row.category %> (<%= row.total %>)</a>
-          <% }) %>
-        </div>
-      <% } else { %>
-        <div class="muted">Belum ada data kategori.</div>
-      <% } %>
-    </article>
-
-    <article class="analytics-card">
-      <h3>Pencarian Terbanyak</h3>
-      <% if (analytics.topSearches.length) { %>
-        <div class="chips">
-          <% analytics.topSearches.forEach((row) => { %>
-            <a class="chip" href="/search?q=<%= encodeURIComponent(row.query) %>"><%= row.query %> (<%= row.total %>)</a>
-          <% }) %>
-        </div>
-      <% } else { %>
-        <div class="muted">Belum ada data pencarian.</div>
-      <% } %>
-    </article>
-  </div>
-</section>
-
-<section class="panel">
-  <div class="panel-head">
-    <h2>Quote Hari Ini <span class="muted">(<%= today %>)</span></h2>
-    <div class="chips">
-      <a class="chip <%= selectedCategory ? "" : "active" %>" href="/">Semua</a>
-      <% categories.slice(0, 10).forEach(c => { %>
-        <a class="chip <%= (selectedCategory === c.category) ? "active" : "" %>"
-           href="/?category=<%= encodeURIComponent(c.category) %>">
-          <%= c.category %> <span class="muted">(<%= c.count %>)</span>
-        </a>
-      <% }) %>
+  <div id="liveSearchPanel" class="live-search-panel" hidden>
+    <div class="live-search-head">
+      <h2>Hasil Realtime</h2>
+      <span id="liveSearchHint" class="muted">Ketik minimal 2 huruf</span>
     </div>
+    <div id="liveSearchResults" class="live-search-results"></div>
   </div>
+</section>
 
-  <% if (todayQuotes.length === 0) { %>
-    <div class="empty">Belum ada quote khusus hari ini. Admin bisa mengatur tanggal quote dari dashboard.</div>
-  <% } else { %>
-    <div class="grid">
-      <% todayQuotes.forEach(q => { %>
-        <a class="card" href="/quote/<%= q.slug %>">
-          <div class="cat"><%= q.categories %></div>
-          <div class="text">"<%= q.text %>"</div>
-          <div class="meta">
-            <span><%= q.author || "Anon" %></span>
-            <span class="muted"><%= q.created_at %></span>
+<div class="home-shell">
+  <aside class="home-side home-side-left">
+    <section class="panel floating-panel analytics-panel">
+      <div class="panel-head">
+        <h2>Mini Analytics Pengguna</h2>
+        <span class="badge badge-user">USER BADGE</span>
+      </div>
+
+      <div class="analytics-grid">
+        <article class="analytics-card">
+          <h3>Quote Paling Sering Dilihat</h3>
+          <% if (analytics.topQuote) { %>
+            <a class="analytics-link" href="/quote/<%= analytics.topQuote.slug || ("quote-" + analytics.topQuote.id) %>">"<%= analytics.topQuote.text %>"</a>
+            <div class="muted"><%= analytics.topQuote.total %> views</div>
+          <% } else { %>
+            <div class="muted">Belum ada data view.</div>
+          <% } %>
+        </article>
+
+        <article class="analytics-card">
+          <h3>Kategori Terpopuler</h3>
+          <% if (analytics.topCategories.length) { %>
+            <div class="chips">
+              <% analytics.topCategories.forEach((row) => { %>
+                <a class="chip" href="/?category=<%= encodeURIComponent(row.category) %>"><%= row.category %> (<%= row.total %>)</a>
+              <% }) %>
+            </div>
+          <% } else { %>
+            <div class="muted">Belum ada data kategori.</div>
+          <% } %>
+        </article>
+
+        <article class="analytics-card">
+          <h3>Pencarian Terbanyak</h3>
+          <% if (analytics.topSearches.length) { %>
+            <div class="chips">
+              <% analytics.topSearches.forEach((row) => { %>
+                <a class="chip" href="/search?q=<%= encodeURIComponent(row.query) %>"><%= row.query %> (<%= row.total %>)</a>
+              <% }) %>
+            </div>
+          <% } else { %>
+            <div class="muted">Belum ada data pencarian.</div>
+          <% } %>
+        </article>
+      </div>
+    </section>
+  </aside>
+
+  <main class="home-main">
+    <section class="panel">
+      <div class="panel-head">
+        <h2>Quote Hari Ini <span class="muted">(<%= formatDate(today) %>)</span></h2>
+        <div class="chips">
+          <a class="chip <%= selectedCategory ? "" : "active" %>" href="/">Semua</a>
+          <% categories.slice(0, 10).forEach((c) => { %>
+            <a class="chip <%= (selectedCategory === c.category) ? "active" : "" %>" href="/?category=<%= encodeURIComponent(c.category) %>">
+              <%= c.category %> <span class="muted">(<%= c.count %>)</span>
+            </a>
+          <% }) %>
+        </div>
+      </div>
+
+      <% if (todayQuotes.length === 0) { %>
+        <div class="empty">Belum ada quote khusus hari ini. Admin bisa mengatur tanggal quote dari dashboard.</div>
+      <% } else { %>
+        <div class="grid">
+          <% todayQuotes.forEach((q) => { %>
+            <a class="card" href="/quote/<%= q.slug %>">
+              <% if (q.series_name) { %><div class="series-pill"><%= q.series_name %></div><% } %>
+              <div class="cat"><%= q.categories %></div>
+              <div class="text">"<%= q.text %>"</div>
+              <div class="meta">
+                <span><%= q.author || "Anon" %></span>
+                <span class="muted"><%= formatDate(q.created_at) %></span>
+              </div>
+              <div class="meta-stats muted">
+                <span>Like <%= q.like_count %></span>
+                <span>Bookmark <%= q.bookmark_count %></span>
+                <span>Komentar <%= q.comment_count %></span>
+              </div>
+            </a>
+          <% }) %>
+        </div>
+      <% } %>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2>Terbaru</h2>
+        <div class="muted">Halaman <%= page %> dari <%= totalPages %></div>
+      </div>
+
+      <div class="grid">
+        <% list.forEach((q) => { %>
+          <a class="card" href="/quote/<%= q.slug %>">
+            <% if (q.series_name) { %><div class="series-pill"><%= q.series_name %></div><% } %>
+            <div class="cat"><%= q.categories %></div>
+            <div class="text">"<%= q.text %>"</div>
+            <div class="meta">
+              <span><%= q.author || "Anon" %></span>
+              <span class="muted"><%= formatDate(q.created_at) %></span>
+            </div>
+            <div class="meta-stats muted">
+              <span>Like <%= q.like_count %></span>
+              <span>Bookmark <%= q.bookmark_count %></span>
+              <span>Komentar <%= q.comment_count %></span>
+            </div>
+          </a>
+        <% }) %>
+      </div>
+
+      <div class="pager">
+        <% if (page > 1) { %>
+          <a class="btn" href="/?category=<%= encodeURIComponent(selectedCategory || "") %>&page=<%= page - 1 %>">Prev</a>
+        <% } %>
+        <% if (page < totalPages) { %>
+          <a class="btn" href="/?category=<%= encodeURIComponent(selectedCategory || "") %>&page=<%= page + 1 %>">Next</a>
+        <% } %>
+      </div>
+    </section>
+  </main>
+
+  <aside class="home-side home-side-right">
+    <section class="panel floating-panel series-panel">
+      <div class="panel-head">
+        <h2>Tema Mingguan Hari Ini</h2>
+        <span class="badge badge-admin"><%= todaySeries ? todaySeries.weekdayLabel : "-" %></span>
+      </div>
+
+      <% if (todaySeries) { %>
+        <div class="series-banner">
+          <div class="series-title"><%= todaySeries.name %></div>
+          <div class="muted">Hint kategori: <%= todaySeries.category_hint || "-" %></div>
+        </div>
+
+        <% if (seriesQuotes.length) { %>
+          <div class="side-quote-list">
+            <% seriesQuotes.forEach((q) => { %>
+              <a class="side-quote-item" href="/quote/<%= q.slug %>">
+                <div class="cat"><%= q.categories %></div>
+                <div class="text">"<%= q.text %>"</div>
+                <div class="meta muted">
+                  <span><%= q.author || "Anon" %></span>
+                  <span>Like <%= q.like_count %></span>
+                </div>
+              </a>
+            <% }) %>
+          </div>
+        <% } else { %>
+          <div class="empty">Belum ada quote untuk tema hari ini.</div>
+        <% } %>
+      <% } else { %>
+        <div class="empty">Tema mingguan belum diatur untuk hari ini.</div>
+      <% } %>
+    </section>
+  </aside>
+</div>
+
+<script>
+(() => {
+  const input = document.getElementById("liveSearchInput");
+  const panel = document.getElementById("liveSearchPanel");
+  const resultBox = document.getElementById("liveSearchResults");
+  const hint = document.getElementById("liveSearchHint");
+  if (!input || !panel || !resultBox || !hint) return;
+
+  let debounceId = null;
+  let controller = null;
+
+  function escapeHtml(text) {
+    return String(text || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/\"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
+  function hidePanel() {
+    panel.hidden = true;
+    resultBox.innerHTML = "";
+    hint.textContent = "Ketik minimal 2 huruf";
+  }
+
+  function renderResults(results) {
+    if (!results.length) {
+      resultBox.innerHTML = '<div class="empty">Tidak ada hasil untuk kata kunci ini.</div>';
+      return;
+    }
+
+    const html = results.map((row) => {
+      return `
+        <a class="live-search-item" href="/quote/${encodeURIComponent(row.slug)}">
+          <div class="cat">${escapeHtml(row.categories)}</div>
+          <div class="text">&quot;${escapeHtml(row.text)}&quot;</div>
+          <div class="meta muted">
+            <span>${escapeHtml(row.author || "Anon")}</span>
+            <span>Like ${Number(row.like_count || 0)} | Bookmark ${Number(row.bookmark_count || 0)} | Komentar ${Number(row.comment_count || 0)}</span>
           </div>
         </a>
-      <% }) %>
-    </div>
-  <% } %>
-</section>
+      `;
+    }).join("");
 
-<section class="panel">
-  <div class="panel-head">
-    <h2>Terbaru</h2>
-    <div class="muted">Halaman <%= page %> dari <%= totalPages %></div>
-  </div>
+    resultBox.innerHTML = html;
+  }
 
-  <div class="grid">
-    <% list.forEach(q => { %>
-      <a class="card" href="/quote/<%= q.slug %>">
-        <div class="cat"><%= q.categories %></div>
-        <div class="text">"<%= q.text %>"</div>
-        <div class="meta">
-          <span><%= q.author || "Anon" %></span>
-          <span class="muted"><%= q.created_at %></span>
-        </div>
-      </a>
-    <% }) %>
-  </div>
+  async function runSearch(query) {
+    if (controller) controller.abort();
+    controller = new AbortController();
 
-  <div class="pager">
-    <% if (page > 1) { %>
-      <a class="btn" href="/?category=<%= encodeURIComponent(selectedCategory || "") %>&page=<%= page - 1 %>">Prev</a>
-    <% } %>
-    <% if (page < totalPages) { %>
-      <a class="btn" href="/?category=<%= encodeURIComponent(selectedCategory || "") %>&page=<%= page + 1 %>">Next</a>
-    <% } %>
-  </div>
-</section>
+    try {
+      const res = await fetch(`/api/search?q=${encodeURIComponent(query)}&limit=8`, {
+        signal: controller.signal,
+        headers: { Accept: "application/json" }
+      });
+      if (!res.ok) return;
+
+      const payload = await res.json();
+      if (input.value.trim() !== query) return;
+
+      panel.hidden = false;
+      hint.textContent = `${payload.results.length} hasil realtime`;
+      renderResults(payload.results || []);
+    } catch (err) {
+      if (err && err.name === "AbortError") return;
+      panel.hidden = false;
+      hint.textContent = "Gagal memuat realtime search";
+      resultBox.innerHTML = '<div class="empty">Terjadi kendala saat mencari.</div>';
+    }
+  }
+
+  input.addEventListener("input", () => {
+    const query = input.value.trim();
+    if (debounceId) clearTimeout(debounceId);
+
+    if (query.length < 2) {
+      hidePanel();
+      return;
+    }
+
+    debounceId = setTimeout(() => {
+      runSearch(query);
+    }, 260);
+  });
+
+  hidePanel();
+})();
+</script>
 

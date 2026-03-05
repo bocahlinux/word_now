@@ -1,0 +1,35 @@
+<section class="hero">
+  <h1>Bookmark Saya</h1>
+  <p>Daftar quote yang kamu simpan di sesi ini.</p>
+</section>
+
+<section class="panel">
+  <div class="panel-head">
+    <h2>Tersimpan</h2>
+    <span class="muted"><%= rows.length %> quote</span>
+  </div>
+
+  <% if (!rows.length) { %>
+    <div class="empty">Belum ada bookmark. Buka quote lalu klik tombol Bookmark.</div>
+  <% } else { %>
+    <div class="grid">
+      <% rows.forEach((q) => { %>
+        <a class="card" href="/quote/<%= q.slug %>">
+          <% if (q.series_name) { %><div class="series-pill"><%= q.series_name %></div><% } %>
+          <div class="cat"><%= q.categories %></div>
+          <div class="text">"<%= q.text %>"</div>
+          <div class="meta">
+            <span><%= q.author || "Anon" %></span>
+            <span class="muted"><%= formatDate(q.created_at) %></span>
+          </div>
+          <div class="meta-stats muted">
+            <span>Like <%= q.like_count %></span>
+            <span>Bookmark <%= q.bookmark_count %></span>
+            <span>Komentar <%= q.comment_count %></span>
+          </div>
+        </a>
+      <% }) %>
+    </div>
+  <% } %>
+</section>
+

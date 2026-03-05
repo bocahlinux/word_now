@@ -1,6 +1,15 @@
 <%
   const userAnalytics = analyticsUser || { topQuote: null, topCategories: [], topSearches: [] };
   const adminAnalytics = analyticsAdmin || { topQuote: null, topCategories: [], topSearches: [] };
+  const quotePageCurrent = quotePage || 1;
+  const quotePages = quoteTotalPages || 1;
+  const pwdState = String(passwordStatus || "");
+  const pwdErrorMap = {
+    invalid_current: "Password lama tidak cocok.",
+    too_short: "Password baru minimal 8 karakter.",
+    mismatch: "Konfirmasi password baru tidak sama.",
+    same: "Password baru harus berbeda dari password lama."
+  };
 %>
 
 <section class="panel analytics-panel">
@@ -9,10 +18,42 @@
     <div class="actions">
       <a class="btn primary" href="/admin/new">+ Tambah</a>
       <a class="btn" href="/">Lihat Public</a>
+      <form method="post" action="/admin/backup" class="inline">
+        <input type="hidden" name="page" value="<%= quotePageCurrent %>" />
+        <button class="btn" type="submit">Backup DB</button>
+      </form>
     </div>
   </div>
 
+  <% if (backupStatus === "ok") { %>
+    <div class="empty">Backup manual berhasil dibuat.</div>
+  <% } else if (backupStatus === "fail") { %>
+    <div class="alert">Backup manual gagal. Cek log server.</div>
+  <% } %>
+
+  <% if (pwdState === "ok") { %>
+    <div class="empty">Password admin berhasil diubah.</div>
+  <% } else if (pwdErrorMap[pwdState]) { %>
+    <div class="alert"><%= pwdErrorMap[pwdState] %></div>
+  <% } %>
+
   <div class="analytics-grid">
+    <article class="analytics-card">
+      <div class="analytics-head">
+        <h3>Backup Otomatis</h3>
+        <span class="badge badge-admin">SYSTEM</span>
+      </div>
+      <div class="muted">Last run: <%= backupState.lastRunAt ? formatDateTime(backupState.lastRunAt) : "-" %></div>
+      <div class="muted">Last file: <%= backupState.lastFile || "-" %></div>
+      <div class="muted">Next run: <%= backupState.nextRunAt ? formatDateTime(backupState.nextRunAt) : "-" %></div>
+      <% if (backupState.lastError) { %>
+        <div class="alert">Error: <%= backupState.lastError %></div>
+      <% } %>
+      <div class="chips">
+        <% backupFiles.forEach((f) => { %><span class="chip"><%= f %></span><% }) %>
+      </div>
+    </article>
+
     <article class="analytics-card">
       <div class="analytics-head">
         <h3>Analytics Pengguna</h3>
@@ -25,14 +66,10 @@
         <div class="muted">Belum ada data view user.</div>
       <% } %>
       <div class="chips">
-        <% userAnalytics.topCategories.forEach((row) => { %>
-          <span class="chip"><%= row.category %> (<%= row.total %>)</span>
-        <% }) %>
+        <% userAnalytics.topCategories.forEach((row) => { %><span class="chip"><%= row.category %> (<%= row.total %>)</span><% }) %>
       </div>
       <div class="chips">
-        <% userAnalytics.topSearches.forEach((row) => { %>
-          <span class="chip"><%= row.query %> (<%= row.total %>)</span>
-        <% }) %>
+        <% userAnalytics.topSearches.forEach((row) => { %><span class="chip"><%= row.query %> (<%= row.total %>)</span><% }) %>
       </div>
     </article>
 
@@ -48,55 +85,154 @@
         <div class="muted">Belum ada data aktivitas admin.</div>
       <% } %>
       <div class="chips">
-        <% adminAnalytics.topCategories.forEach((row) => { %>
-          <span class="chip"><%= row.category %> (<%= row.total %>)</span>
-        <% }) %>
+        <% adminAnalytics.topCategories.forEach((row) => { %><span class="chip"><%= row.category %> (<%= row.total %>)</span><% }) %>
       </div>
       <div class="chips">
-        <% adminAnalytics.topSearches.forEach((row) => { %>
-          <span class="chip"><%= row.query %> (<%= row.total %>)</span>
-        <% }) %>
+        <% adminAnalytics.topSearches.forEach((row) => { %><span class="chip"><%= row.query %> (<%= row.total %>)</span><% }) %>
       </div>
+    </article>
+
+    <article class="analytics-card">
+      <div class="analytics-head">
+        <h3>Ganti Password</h3>
+        <span class="badge badge-admin">SECURITY</span>
+      </div>
+
+      <form class="form" method="post" action="/admin/password">
+        <input type="hidden" name="page" value="<%= quotePageCurrent %>" />
+        <label>Password Lama</label>
+        <input name="current_password" type="password" autocomplete="current-password" required />
+        <label>Password Baru</label>
+        <input name="new_password" type="password" autocomplete="new-password" minlength="8" required />
+        <label>Konfirmasi Password Baru</label>
+        <input name="confirm_password" type="password" autocomplete="new-password" minlength="8" required />
+        <button class="btn primary" type="submit">Simpan Password</button>
+      </form>
     </article>
   </div>
 </section>
 
 <section class="panel">
   <div class="panel-head">
-    <h2>Daftar Quote</h2>
-    <div class="muted">Maksimal 200 data terbaru.</div>
+    <h2>Tema Mingguan</h2>
+    <div class="muted">Aktif/nonaktif seri mingguan</div>
   </div>
-
   <div class="table">
     <div class="row head">
-      <div>ID</div><div>Kategori</div><div>Status</div><div>Jadwal</div><div>Teks / Slug</div><div>Aksi</div>
+      <div>ID</div><div>Hari</div><div>Nama</div><div>Hint</div><div>Status</div><div>Aksi</div>
     </div>
-    <% rows.forEach(q => { %>
-      <% const statusText = q.is_published ? "Aktif" : (q.publish_at ? "Terjadwal" : "Draft"); %>
+    <% seriesRows.forEach((s) => { %>
       <div class="row">
-        <div><%= q.id %></div>
-        <div><%= q.categories %></div>
-        <div><%= statusText %></div>
-        <div class="muted"><%= q.publish_at || "-" %></div>
-        <div class="clip">
-          <div>"<%= q.text %>"</div>
-          <div class="muted"><%= q.slug || "-" %></div>
-        </div>
+        <div><%= s.id %></div>
+        <div><%= s.weekdayLabel %></div>
+        <div><%= s.name %></div>
+        <div><%= s.category_hint || "-" %></div>
+        <div><%= s.is_active ? "Aktif" : "Nonaktif" %></div>
         <div class="actions">
-          <a class="btn sm" href="/admin/edit/<%= q.id %>">Edit</a>
-          <a class="btn sm" href="/admin/preview/<%= q.id %>">Preview</a>
-          <% if (q.is_published && q.slug) { %>
-            <a class="btn sm" href="/quote/<%= q.slug %>" target="_blank" rel="noreferrer">Lihat</a>
-          <% } %>
-          <form method="post" action="/admin/toggle/<%= q.id %>" class="inline">
-            <button class="btn sm" type="submit"><%= q.is_published ? "Draft" : "Publish" %></button>
-          </form>
-          <form method="post" action="/admin/delete/<%= q.id %>" class="inline" onsubmit="return confirm('Hapus item ini?')">
-            <button class="btn sm danger" type="submit">Hapus</button>
+          <form method="post" action="/admin/series/<%= s.id %>/toggle" class="inline">
+            <input type="hidden" name="page" value="<%= quotePageCurrent %>" />
+            <button class="btn sm" type="submit"><%= s.is_active ? "Nonaktifkan" : "Aktifkan" %></button>
           </form>
         </div>
       </div>
     <% }) %>
+  </div>
+</section>
+
+<section class="panel">
+  <div class="panel-head">
+    <h2>Komentar Mini</h2>
+    <div class="muted">Moderasi komentar terbaru</div>
+  </div>
+
+  <% if (!comments.length) { %>
+    <div class="empty">Belum ada komentar.</div>
+  <% } else { %>
+    <div class="comment-list">
+      <% comments.forEach((c) => { %>
+        <article class="comment-item">
+          <div class="comment-head">
+            <strong><%= c.author || "Anon" %></strong>
+            <span class="muted"><%= formatDate(c.created_at) %></span>
+          </div>
+          <p><%= c.comment %></p>
+          <div class="muted">Quote: <a href="/admin/preview/<%= c.quote_id %>">"<%= c.text %>"</a></div>
+          <div class="actions">
+            <form method="post" action="/admin/comments/<%= c.id %>/toggle" class="inline">
+              <input type="hidden" name="page" value="<%= quotePageCurrent %>" />
+              <button class="btn sm" type="submit"><%= c.is_hidden ? "Tampilkan" : "Sembunyikan" %></button>
+            </form>
+          </div>
+        </article>
+      <% }) %>
+    </div>
+  <% } %>
+</section>
+
+<section class="panel">
+  <div class="panel-head">
+    <h2>Daftar Quote</h2>
+    <div class="muted">Halaman <%= quotePageCurrent %> / <%= quotePages %> - Total <%= quoteTotal %> quote.</div>
+  </div>
+
+  <div class="pager">
+    <% if (quotePageCurrent > 1) { %>
+      <a class="btn" href="/admin?page=<%= quotePageCurrent - 1 %>">Prev</a>
+    <% } %>
+    <% if (quotePageCurrent < quotePages) { %>
+      <a class="btn" href="/admin?page=<%= quotePageCurrent + 1 %>">Next</a>
+    <% } %>
+  </div>
+
+  <% if (!rows.length) { %>
+    <div class="empty">Belum ada quote.</div>
+  <% } else { %>
+    <div class="table">
+      <div class="row head">
+        <div>No</div><div>Kategori</div><div>Status</div><div>Jadwal</div><div>Teks / Slug</div><div>Aksi</div>
+      </div>
+      <% rows.forEach((q, idx) => { %>
+        <% const statusText = q.is_published ? "Aktif" : (q.publish_at ? "Terjadwal" : "Draft"); %>
+        <div class="row">
+          <div><%= ((quotePageCurrent - 1) * (quotePageSize || 20)) + idx + 1 %></div>
+          <div>
+            <div><%= q.categories %></div>
+            <% if (q.series_name) { %><div class="series-pill"><%= q.series_name %></div><% } %>
+          </div>
+          <div><%= statusText %></div>
+          <div class="muted"><%= q.publish_at ? formatDateTime(q.publish_at) : "-" %></div>
+          <div class="clip">
+            <div>"<%= q.text %>"</div>
+            <div class="muted"><%= q.slug || "-" %></div>
+            <div class="muted">Like <%= q.like_count %> | Bookmark <%= q.bookmark_count %> | Komentar <%= q.comment_count %></div>
+          </div>
+          <div class="actions">
+            <a class="btn sm" href="/admin/edit/<%= q.id %>">Edit</a>
+            <a class="btn sm" href="/admin/preview/<%= q.id %>">Preview</a>
+            <% if (q.is_published && q.slug) { %>
+              <a class="btn sm" href="/quote/<%= q.slug %>" target="_blank" rel="noreferrer">Lihat</a>
+            <% } %>
+            <form method="post" action="/admin/toggle/<%= q.id %>" class="inline">
+              <input type="hidden" name="page" value="<%= quotePageCurrent %>" />
+              <button class="btn sm" type="submit"><%= q.is_published ? "Draft" : "Publish" %></button>
+            </form>
+            <form method="post" action="/admin/delete/<%= q.id %>" class="inline" onsubmit="return confirm('Hapus item ini?')">
+              <input type="hidden" name="page" value="<%= quotePageCurrent %>" />
+              <button class="btn sm danger" type="submit">Hapus</button>
+            </form>
+          </div>
+        </div>
+      <% }) %>
+    </div>
+  <% } %>
+
+  <div class="pager">
+    <% if (quotePageCurrent > 1) { %>
+      <a class="btn" href="/admin?page=<%= quotePageCurrent - 1 %>">Prev</a>
+    <% } %>
+    <% if (quotePageCurrent < quotePages) { %>
+      <a class="btn" href="/admin?page=<%= quotePageCurrent + 1 %>">Next</a>
+    <% } %>
   </div>
 </section>
 

@@ -1,13 +1,69 @@
 <section class="panel">
   <div class="panel-head">
     <h1>"<%= q.text %>"</h1>
-    <div class="muted"><%= q.categories %> - <%= q.author || "Anon" %> - <%= q.created_at %></div>
+    <div class="muted"><%= q.categories %> - <%= q.author || "Anon" %> - <%= formatDate(q.created_at) %></div>
   </div>
 
+  <% if (q.series_name) { %>
+    <div class="series-pill"><%= q.series_name %></div>
+  <% } %>
+
   <div class="muted">Slug: <code><%= q.slug %></code></div>
+
+  <div id="engage" class="actions">
+    <form method="post" action="/quote/<%= q.slug %>/like" class="inline">
+      <input type="hidden" name="next" value="/quote/<%= q.slug %>" />
+      <button class="btn sm <%= liked ? "primary" : "" %>" type="submit"><%= liked ? "Unlike" : "Like" %> (<%= q.like_count %>)</button>
+    </form>
+
+    <form method="post" action="/quote/<%= q.slug %>/bookmark" class="inline">
+      <input type="hidden" name="next" value="/quote/<%= q.slug %>" />
+      <button class="btn sm" type="submit"><%= bookmarked ? "Unbookmark" : "Bookmark" %> (<%= q.bookmark_count %>)</button>
+    </form>
+
+    <a class="btn sm" href="/quote/<%= q.slug %>/share.svg" target="_blank" rel="noreferrer">Share Image</a>
+  </div>
+
+  <div class="meta-stats muted">
+    <span>Views <%= q.view_count %></span>
+    <span>Komentar <%= q.comment_count %></span>
+  </div>
 
   <div class="actions">
     <a class="btn" href="/">Kembali</a>
     <a class="btn" href="/random">Random</a>
   </div>
 </section>
+
+<section id="comments" class="panel">
+  <div class="panel-head">
+    <h2>Komentar Mini</h2>
+    <span class="muted"><%= comments.length %> komentar terbaru</span>
+  </div>
+
+  <form class="form" method="post" action="/quote/<%= q.slug %>/comment">
+    <label>Nama (opsional)</label>
+    <input name="author" maxlength="60" placeholder="Anon" />
+    <label>Komentar</label>
+    <textarea name="comment" rows="3" maxlength="280" required placeholder="Tulis komentar singkat..."></textarea>
+    <button class="btn primary" type="submit">Kirim Komentar</button>
+  </form>
+
+  <% if (!comments.length) { %>
+    <div class="empty">Belum ada komentar.</div>
+  <% } else { %>
+    <div class="comment-list">
+      <% comments.forEach((c) => { %>
+        <article class="comment-item">
+          <div class="comment-head">
+            <strong><%= c.author || "Anon" %></strong>
+            <span class="muted"><%= formatDate(c.created_at) %></span>
+          </div>
+          <p><%= c.comment %></p>
+        </article>
+      <% }) %>
+    </div>
+  <% } %>
+</section>
+
+

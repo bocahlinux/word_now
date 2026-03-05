@@ -5,6 +5,9 @@
       <span class="badge badge-admin">ADMIN BADGE</span>
       <a class="btn" href="/admin/edit/<%= q.id %>">Edit</a>
       <a class="btn" href="/admin">Kembali Dashboard</a>
+      <% if (q.slug) { %>
+        <a class="btn" href="/quote/<%= q.slug %>/share.svg" target="_blank" rel="noreferrer">Share Image</a>
+      <% } %>
       <% if (q.is_published && q.slug) { %>
         <a class="btn" href="/quote/<%= q.slug %>" target="_blank" rel="noreferrer">Lihat Public</a>
       <% } %>
@@ -12,11 +15,14 @@
   </div>
 
   <div class="muted">Status: <%= q.is_published ? "Aktif" : (q.publish_at ? "Terjadwal" : "Draft") %></div>
-  <div class="muted">Jadwal: <%= q.publish_at || "-" %></div>
+  <div class="muted">Jadwal: <%= q.publish_at ? formatDateTime(q.publish_at) : "-" %></div>
   <div class="muted">Slug: <code><%= q.slug || "-" %></code></div>
+  <div class="muted">Like <%= q.like_count %> | Bookmark <%= q.bookmark_count %> | Komentar <%= q.comment_count %> | Views <%= q.view_count %></div>
 
   <hr />
 
+  <% if (q.series_name) { %><div class="series-pill"><%= q.series_name %></div><% } %>
   <h2>"<%= q.text %>"</h2>
-  <div class="muted"><%= q.categories %> - <%= q.author || "Anon" %> - <%= q.created_at %></div>
+  <div class="muted"><%= q.categories %> - <%= q.author || "Anon" %> - <%= formatDate(q.created_at) %></div>
 </section>
+

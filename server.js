@@ -200,6 +200,39 @@ app.set("views", path.join(__dirname, "views"));
 const expressLayouts = require("express-ejs-layouts");
 app.use(expressLayouts);
 app.set("layout", "layout");
+function formatDateDisplay(rawValue, options = {}) {
+  const raw = String(rawValue || "").trim();
+  if (!raw) return "-";
+
+  const includeTime = Boolean(options.includeTime);
+  const matched = raw.match(/^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::\d{2})?)?/);
+  if (matched) {
+    const base = `${matched[3]}-${matched[2]}-${matched[1]}`;
+    if (includeTime && matched[4] && matched[5]) return `${base} ${matched[4]}:${matched[5]}`;
+    return base;
+  }
+
+  const date = new Date(raw);
+  if (!Number.isNaN(date.getTime())) {
+    const dd = String(date.getDate()).padStart(2, "0");
+    const mm = String(date.getMonth() + 1).padStart(2, "0");
+    const yyyy = String(date.getFullYear());
+    const base = `${dd}-${mm}-${yyyy}`;
+
+    if (includeTime) {
+      const hh = String(date.getHours()).padStart(2, "0");
+      const mi = String(date.getMinutes()).padStart(2, "0");
+      return `${base} ${hh}:${mi}`;
+    }
+
+    return base;
+  }
+
+  return raw;
+}
+
+app.locals.formatDate = (rawValue) => formatDateDisplay(rawValue);
+app.locals.formatDateTime = (rawValue) => formatDateDisplay(rawValue, { includeTime: true });
 function todayISO() {
   const d = new Date();
   const yyyy = d.getFullYear();
@@ -222,6 +255,25 @@ function nowSqlLocal() {
 function weekdayName(day) {
   const names = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
   return names[day] || "-";
+}
+
+function parsePageValue(rawValue, fallback = 1) {
+  const page = Number.parseInt(String(rawValue || ""), 10);
+  if (!Number.isInteger(page) || page < 1) return fallback;
+  return page;
+}
+
+function adminPageFromRequest(req) {
+  return parsePageValue((req.body && req.body.page) || req.query.page || 1, 1);
+}
+
+function adminRedirect(res, page, extras = {}) {
+  const params = new URLSearchParams({ page: String(parsePageValue(page, 1)) });
+  for (const [key, value] of Object.entries(extras)) {
+    if (value === null || value === undefined || String(value) === "") continue;
+    params.set(key, String(value));
+  }
+  return res.redirect(`/admin?${params.toString()}`);
 }
 
 function requireAdmin(req, res, next) {
@@ -345,7 +397,7 @@ function absoluteUrl(req, pathname) {
 }
 
 function buildSeo(req, options = {}) {
-  const title = options.title || "Kata Hari Ini";
+  const title = options.title || "Kata YauDah";
   const description = options.description || "Kumpulan quote harian: gombalan, motivasi, galau, lucu, dan lainnya.";
   const pathName = options.pathName || req.path;
   const canonical = options.canonical || absoluteUrl(req, pathName);
@@ -359,7 +411,7 @@ function buildSeo(req, options = {}) {
     image,
     type: options.type || "website",
     robots: options.robots || "index,follow",
-    keywords: options.keywords || "quote, gombalan, motivasi, kata-kata, kata hari ini",
+    keywords: options.keywords || "quote, gombalan, motivasi, kata-kata, Kata YauDah",
     jsonLd: options.jsonLd || null
   };
 }
@@ -463,6 +515,31 @@ function findQuoteBySlug(rawSlug, options = {}) {
 
   return q || null;
 }
+
+function searchPublishedQuotes(rawQuery, limit = 50) {
+  const query = String(rawQuery || "").trim();
+  const safeLimit = Math.min(Math.max(Number(limit) || 10, 1), 50);
+  if (query.length < 2) return [];
+
+  return db.prepare(`
+    SELECT ${quoteSelectFields}
+    ${quoteFromClause}
+    WHERE ${PUBLISHED_WHERE}
+      AND (
+        q.text LIKE ?
+        OR q.author LIKE ?
+        OR EXISTS (
+          SELECT 1
+          FROM quote_categories qc
+          WHERE qc.quote_id = q.id
+            AND qc.category LIKE ?
+        )
+      )
+    ORDER BY q.created_at DESC
+    LIMIT ?
+  `).all(`%${query}%`, `%${query}%`, `%${query}%`, safeLimit);
+}
+
 
 function formatBackupTimestamp(date = new Date()) {
   const yyyy = date.getFullYear();
@@ -625,13 +702,13 @@ app.get("/", (req, res) => {
     todaySeries: todaySeries ? { ...todaySeries, weekdayLabel: weekdayName(todaySeries.weekday) } : null,
     seriesQuotes,
     seo: buildSeo(req, {
-      title: category ? `Kata ${category} - Kata Hari Ini` : "Kata Hari Ini",
+      title: category ? `Kata ${category} - Kata YauDah` : "Kata YauDah",
       description: "Quote harian, gombalan, motivasi, galau, dan tema mingguan yang bisa kamu bookmark.",
       pathName: req.originalUrl || "/",
       jsonLd: {
         "@context": "https://schema.org",
         "@type": "WebSite",
-        name: "Kata Hari Ini",
+        name: "Kata YauDah",
         url: absoluteUrl(req, "/")
       }
     })
@@ -651,7 +728,7 @@ app.get("/bookmarks", (req, res) => {
   res.render("bookmarks", layoutData(req, {
     rows,
     seo: buildSeo(req, {
-      title: "Bookmark Saya - Kata Hari Ini",
+      title: "Bookmark Saya - Kata YauDah",
       description: "Daftar quote yang kamu bookmark di sesi ini.",
       robots: "noindex,follow"
     })
@@ -702,7 +779,7 @@ app.get("/quote/:slug", (req, res) => {
     liked,
     bookmarked,
     seo: buildSeo(req, {
-      title: `${q.text.slice(0, 55)} - Kata Hari Ini`,
+      title: `${q.text.slice(0, 55)} - Kata YauDah`,
       description: `${q.text.slice(0, 150)} ${q.author ? `- ${q.author}` : ""}`.trim(),
       pathName: canonicalPath,
       type: "article",
@@ -725,29 +802,30 @@ app.get("/quote/:slug/share.svg", (req, res) => {
   const q = findQuoteBySlug(req.params.slug, { includeUnpublished: false });
   if (!q) return res.status(404).send("Quote tidak ditemukan.");
 
-  const lines = wrapText(q.text, 36);
+  const lines = wrapText(q.text, 28);
   const author = q.author ? `- ${q.author}` : "- Anon";
 
   const textLines = lines.map((line, idx) => {
-    const y = 330 + (idx * 64);
-    return `<text x="100" y="${y}" font-family="'Plus Jakarta Sans', sans-serif" font-size="48" fill="#ffffff">${escapeXml(line)}</text>`;
+    const y = 560 + (idx * 76);
+    return `<text x="112" y="${y}" font-family="'Plus Jakarta Sans', sans-serif" font-size="56" fill="#ffffff">${escapeXml(line)}</text>`;
   }).join("\n");
 
   const svg = `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1080" viewBox="0 0 1080 1080">
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1920" viewBox="0 0 1080 1920">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0%" stop-color="#0ea5a2"/>
       <stop offset="100%" stop-color="#2563eb"/>
     </linearGradient>
   </defs>
-  <rect width="1080" height="1080" fill="url(#bg)"/>
-  <rect x="70" y="70" width="940" height="940" rx="42" fill="rgba(10,20,34,0.35)" stroke="rgba(255,255,255,0.18)"/>
-  <text x="100" y="180" font-family="'Cormorant Garamond', serif" font-size="58" fill="#ffffff">Kata Hari Ini</text>
-  <text x="100" y="248" font-family="'Plus Jakarta Sans', sans-serif" font-size="28" fill="rgba(255,255,255,0.85)">${escapeXml(q.categories || "quote")}</text>
+  <rect width="1080" height="1920" fill="url(#bg)"/>
+  <rect x="60" y="120" width="960" height="1680" rx="48" fill="rgba(10,20,34,0.35)" stroke="rgba(255,255,255,0.18)"/>
+  <text x="112" y="250" font-family="'Cormorant Garamond', serif" font-size="72" fill="#ffffff">Kata YauDah</text>
+  <text x="112" y="320" font-family="'Plus Jakarta Sans', sans-serif" font-size="34" fill="rgba(255,255,255,0.86)">${escapeXml(q.categories || "quote")}</text>
   ${textLines}
-  <text x="100" y="860" font-family="'Plus Jakarta Sans', sans-serif" font-size="34" fill="rgba(255,255,255,0.92)">${escapeXml(author)}</text>
-  <text x="100" y="930" font-family="'Plus Jakarta Sans', sans-serif" font-size="24" fill="rgba(255,255,255,0.72)">/quote/${escapeXml(q.slug)}</text>
+  <text x="112" y="1600" font-family="'Plus Jakarta Sans', sans-serif" font-size="42" fill="rgba(255,255,255,0.95)">${escapeXml(author)}</text>
+  <text x="112" y="1670" font-family="'Plus Jakarta Sans', sans-serif" font-size="28" fill="rgba(255,255,255,0.78)">/quote/${escapeXml(q.slug)}</text>
+  <text x="112" y="1760" font-family="'Plus Jakarta Sans', sans-serif" font-size="24" fill="rgba(255,255,255,0.70)">Format Story 9:16 - WhatsApp / Instagram / TikTok</text>
 </svg>`;
 
   res.type("image/svg+xml");
@@ -817,23 +895,7 @@ app.get("/search", (req, res) => {
   let results = [];
 
   if (query.length >= 2) {
-    results = db.prepare(`
-      SELECT ${quoteSelectFields}
-      ${quoteFromClause}
-      WHERE ${PUBLISHED_WHERE}
-        AND (
-          q.text LIKE ?
-          OR q.author LIKE ?
-          OR EXISTS (
-            SELECT 1
-            FROM quote_categories qc
-            WHERE qc.quote_id = q.id
-              AND qc.category LIKE ?
-          )
-        )
-      ORDER BY q.created_at DESC
-      LIMIT 50
-    `).all(`%${query}%`, `%${query}%`, `%${query}%`);
+    results = searchPublishedQuotes(query, 50);
 
     insertSearchLogStmt.run(query.toLowerCase(), results.length, viewerTypeFromRequest(req));
   }
@@ -842,7 +904,7 @@ app.get("/search", (req, res) => {
     query,
     results,
     seo: buildSeo(req, {
-      title: query ? `Hasil: ${query} - Kata Hari Ini` : "Cari Quote - Kata Hari Ini",
+      title: query ? `Hasil: ${query} - Kata YauDah` : "Cari Quote - Kata YauDah",
       description: query ? `Hasil pencarian quote untuk kata kunci: ${query}` : "Cari quote berdasarkan kata kunci.",
       pathName: req.originalUrl || "/search",
       robots: query ? "noindex,follow" : "index,follow"
@@ -850,6 +912,29 @@ app.get("/search", (req, res) => {
   }));
 });
 
+app.get("/api/search", (req, res) => {
+  const query = String(req.query.q || "").trim();
+  const limit = Number(req.query.limit || 8);
+
+  if (query.length < 2) {
+    return res.json({ query, results: [] });
+  }
+
+  const rows = searchPublishedQuotes(query, limit).map((item) => ({
+    id: item.id,
+    slug: item.slug,
+    text: item.text,
+    author: item.author || "Anon",
+    categories: item.categories || "lainnya",
+    created_at: item.created_at,
+    series_name: item.series_name || null,
+    like_count: item.like_count || 0,
+    bookmark_count: item.bookmark_count || 0,
+    comment_count: item.comment_count || 0
+  }));
+
+  return res.json({ query, results: rows });
+});
 app.get("/og-default.svg", (req, res) => {
   const svg = `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
@@ -860,7 +945,7 @@ app.get("/og-default.svg", (req, res) => {
     </linearGradient>
   </defs>
   <rect width="1200" height="630" fill="url(#bg)"/>
-  <text x="70" y="250" font-family="Arial, sans-serif" font-size="72" fill="#ffffff">Kata Hari Ini</text>
+  <text x="70" y="250" font-family="Arial, sans-serif" font-size="72" fill="#ffffff">Kata YauDah</text>
   <text x="70" y="330" font-family="Arial, sans-serif" font-size="36" fill="rgba(255,255,255,0.88)">Gombalan, motivasi, dan quote harian</text>
 </svg>`;
 
@@ -910,7 +995,7 @@ app.get("/admin/login", (req, res) => {
     title: "Login Admin",
     error: null,
     seo: buildSeo(req, {
-      title: "Login Admin - Kata Hari Ini",
+      title: "Login Admin - Kata YauDah",
       robots: "noindex,nofollow"
     })
   }));
@@ -926,7 +1011,7 @@ app.post("/admin/login", loginLimiter, (req, res) => {
       title: "Login Admin",
       error: "Login gagal.",
       seo: buildSeo(req, {
-        title: "Login Admin - Kata Hari Ini",
+        title: "Login Admin - Kata YauDah",
         robots: "noindex,nofollow"
       })
     }));
@@ -938,7 +1023,7 @@ app.post("/admin/login", loginLimiter, (req, res) => {
       title: "Login Admin",
       error: "Login gagal.",
       seo: buildSeo(req, {
-        title: "Login Admin - Kata Hari Ini",
+        title: "Login Admin - Kata YauDah",
         robots: "noindex,nofollow"
       })
     }));
@@ -954,12 +1039,18 @@ app.post("/admin/logout", (req, res) => {
 });
 
 app.get("/admin", requireAdmin, (req, res) => {
+  const quotePageSize = 20;
+  const quoteTotal = db.prepare(`SELECT COUNT(*) as c FROM quotes q`).get().c;
+  const quoteTotalPages = Math.max(1, Math.ceil(quoteTotal / quotePageSize));
+  const quotePage = Math.min(adminPageFromRequest(req), quoteTotalPages);
+  const quoteOffset = (quotePage - 1) * quotePageSize;
+
   const rows = db.prepare(`
     SELECT ${quoteSelectFields}
     ${quoteFromClause}
     ORDER BY q.created_at DESC
-    LIMIT 200
-  `).all();
+    LIMIT ? OFFSET ?
+  `).all(quotePageSize, quoteOffset);
 
   const comments = db.prepare(`
     SELECT c.id, c.author, c.comment, c.is_hidden, c.created_at, q.id as quote_id, q.slug, q.text
@@ -976,38 +1067,80 @@ app.get("/admin", requireAdmin, (req, res) => {
   res.render("admin/dashboard", layoutData(req, {
     rows,
     comments,
+    quotePage,
+    quotePageSize,
+    quoteTotal,
+    quoteTotalPages,
     seriesRows: readSeriesOptionsStmt.all().map((row) => ({ ...row, weekdayLabel: weekdayName(row.weekday) })),
     analyticsUser: getAnalytics("user"),
     analyticsAdmin: getAnalytics("admin"),
     backupState,
     backupFiles,
     backupStatus: String(req.query.backup || ""),
+    passwordStatus: String(req.query.pwd || ""),
     seo: buildSeo(req, {
-      title: "Dashboard Admin - Kata Hari Ini",
+      title: "Dashboard Admin - Kata YauDah",
       robots: "noindex,nofollow"
     })
   }));
 });
 
 app.post("/admin/backup", requireAdmin, async (req, res) => {
+  const page = adminPageFromRequest(req);
   try {
     await createDbBackup("manual");
-    res.redirect("/admin?backup=ok");
+    return adminRedirect(res, page, { backup: "ok" });
   } catch (_) {
-    res.redirect("/admin?backup=fail");
+    return adminRedirect(res, page, { backup: "fail" });
   }
 });
 
+app.post("/admin/password", requireAdmin, (req, res) => {
+  const page = adminPageFromRequest(req);
+  const currentPassword = String(req.body.current_password || "");
+  const newPassword = String(req.body.new_password || "");
+  const confirmPassword = String(req.body.confirm_password || "");
+
+  const admin = db.prepare(`SELECT id, password_hash FROM admins WHERE id=?`).get(req.session.adminId);
+  if (!admin || typeof admin.password_hash !== "string" || admin.password_hash.length < 10) {
+    req.session = null;
+    return res.redirect("/admin/login");
+  }
+
+  if (!bcrypt.compareSync(currentPassword, admin.password_hash)) {
+    return adminRedirect(res, page, { pwd: "invalid_current" });
+  }
+
+  if (newPassword.length < 8) {
+    return adminRedirect(res, page, { pwd: "too_short" });
+  }
+
+  if (newPassword !== confirmPassword) {
+    return adminRedirect(res, page, { pwd: "mismatch" });
+  }
+
+  if (bcrypt.compareSync(newPassword, admin.password_hash)) {
+    return adminRedirect(res, page, { pwd: "same" });
+  }
+
+  const nextHash = bcrypt.hashSync(newPassword, 10);
+  db.prepare(`UPDATE admins SET password_hash=? WHERE id=?`).run(nextHash, admin.id);
+
+  return adminRedirect(res, page, { pwd: "ok" });
+});
+
 app.post("/admin/comments/:id/toggle", requireAdmin, (req, res) => {
+  const page = adminPageFromRequest(req);
   const id = Number(req.params.id);
   if (Number.isFinite(id) && id > 0) toggleCommentVisibilityStmt.run(id);
-  res.redirect("/admin");
+  return adminRedirect(res, page);
 });
 
 app.post("/admin/series/:id/toggle", requireAdmin, (req, res) => {
+  const page = adminPageFromRequest(req);
   const id = Number(req.params.id);
   if (Number.isFinite(id) && id > 0) toggleSeriesStmt.run(id);
-  res.redirect("/admin");
+  return adminRedirect(res, page);
 });
 
 app.get("/admin/new", requireAdmin, (req, res) => {
@@ -1176,12 +1309,14 @@ app.get("/admin/preview/:id", requireAdmin, (req, res) => {
 });
 
 app.post("/admin/delete/:id", requireAdmin, (req, res) => {
+  const page = adminPageFromRequest(req);
   const id = Number(req.params.id);
   db.prepare(`DELETE FROM quotes WHERE id=?`).run(id);
-  res.redirect("/admin");
+  return adminRedirect(res, page);
 });
 
 app.post("/admin/toggle/:id", requireAdmin, (req, res) => {
+  const page = adminPageFromRequest(req);
   const id = Number(req.params.id);
   db.prepare(`
     UPDATE quotes
@@ -1190,9 +1325,11 @@ app.post("/admin/toggle/:id", requireAdmin, (req, res) => {
         updated_at = datetime('now')
     WHERE id=?
   `).run(id);
-  res.redirect("/admin");
+  return adminRedirect(res, page);
 });
 
 app.listen(PORT, HOST, () => {
   console.log(`[kata-hari-ini] http://${HOST}:${PORT} env=${NODE_ENV}`);
 });
+
+

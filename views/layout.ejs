@@ -1,6 +1,6 @@
 <%
   const pageSeo = seo || {};
-  const seoTitle = pageSeo.title || ((typeof title !== "undefined" && title) ? title : "Kata Hari Ini");
+  const seoTitle = pageSeo.title || ((typeof title !== "undefined" && title) ? title : "Kata YauDah");
   const seoDescription = pageSeo.description || "Kumpulan quote harian.";
   const seoCanonical = pageSeo.canonical || "";
   const seoUrl = pageSeo.url || seoCanonical;
@@ -20,7 +20,7 @@
   <meta name="robots" content="<%= seoRobots %>" />
   <% if (seoCanonical) { %><link rel="canonical" href="<%= seoCanonical %>" /><% } %>
 
-  <meta property="og:site_name" content="Kata Hari Ini" />
+  <meta property="og:site_name" content="Kata YauDah" />
   <meta property="og:title" content="<%= seoTitle %>" />
   <meta property="og:description" content="<%= seoDescription %>" />
   <meta property="og:type" content="<%= seoType %>" />
@@ -63,7 +63,7 @@
 </head>
 <body>
   <header class="top shell">
-    <a class="brand" href="/">Kata Hari Ini</a>
+    <a class="brand" href="/">Kata YauDah</a>
     <nav class="nav">
       <a href="/random">Random</a>
       <a href="/search">Cari</a>
