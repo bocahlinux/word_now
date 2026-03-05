@@ -1,0 +1,33 @@
+<section class="panel">
+  <div class="panel-head">
+    <h1>Dashboard Admin</h1>
+    <div class="actions">
+      <a class="btn primary" href="/admin/new">+ Tambah</a>
+      <a class="btn" href="/">Lihat Public</a>
+    </div>
+  </div>
+
+  <div class="table">
+    <div class="row head">
+      <div>ID</div><div>Kategori</div><div>Tanggal</div><div>Publish</div><div>Teks</div><div>Aksi</div>
+    </div>
+    <% rows.forEach(q => { %>
+      <div class="row">
+        <div><%= q.id %></div>
+        <div><%= q.category %></div>
+        <div class="muted"><%= q.for_date || "-" %></div>
+        <div><%= q.is_published ? "✅" : "⛔" %></div>
+        <div class="clip">“<%= q.text %>”</div>
+        <div class="actions">
+          <a class="btn sm" href="/admin/edit/<%= q.id %>">Edit</a>
+          <form method="post" action="/admin/toggle/<%= q.id %>" class="inline">
+            <button class="btn sm" type="submit"><%= q.is_published ? "Unpub" : "Pub" %></button>
+          </form>
+          <form method="post" action="/admin/delete/<%= q.id %>" class="inline" onsubmit="return confirm('Hapus item ini?')">
+            <button class="btn sm danger" type="submit">Hapus</button>
+          </form>
+        </div>
+      </div>
+    <% }) %>
+  </div>
+</section>

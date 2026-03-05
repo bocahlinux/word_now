@@ -1,0 +1,33 @@
+<section class="panel">
+  <div class="panel-head">
+    <h1><%= mode === "new" ? "Tambah Kata-kata" : "Edit Kata-kata" %></h1>
+    <div class="actions">
+      <a class="btn" href="/admin">Kembali</a>
+    </div>
+  </div>
+
+  <% if (error) { %>
+    <div class="alert"><%= error %></div>
+  <% } %>
+
+  <form class="form" method="post" action="<%= mode === 'new' ? '/admin/new' : ('/admin/edit/' + q.id) %>">
+    <label>Teks</label>
+    <textarea name="text" rows="5" required><%= q.text %></textarea>
+
+    <label>Kategori</label>
+    <input name="category" value="<%= q.category %>" placeholder="gombalan / motivasi / galau / lucu / lainnya" />
+
+    <label>Author (opsional)</label>
+    <input name="author" value="<%= q.author || '' %>" placeholder="Anon / Nama" />
+
+    <label>Untuk Tanggal (opsional, YYYY-MM-DD)</label>
+    <input name="for_date" value="<%= q.for_date || '' %>" placeholder="2026-03-05" />
+
+    <label class="check">
+      <input type="checkbox" name="is_published" <%= q.is_published ? "checked" : "" %> />
+      Publish
+    </label>
+
+    <button class="btn primary" type="submit">Simpan</button>
+  </form>
+</section>

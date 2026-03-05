@@ -1,0 +1,74 @@
+<%
+  const pageTitle = selectedCategory ? `Kata: ${selectedCategory}` : "Kata Hari Ini";
+%>
+
+<section class="hero">
+  <h1><%= pageTitle %></h1>
+  <p>Catatan kata-kata: gombalan, motivasi, galau, lucu… yang penting jangan PHP beneran.</p>
+
+  <form class="searchbar" action="/search" method="get">
+    <input name="q" placeholder="Cari kata-kata..." />
+    <button type="submit">Cari</button>
+  </form>
+</section>
+
+<section class="panel">
+  <div class="panel-head">
+    <h2>Quote of the Day — <span class="muted"><%= today %></span></h2>
+    <div class="chips">
+      <a class="chip <%= selectedCategory ? "" : "active" %>" href="/">Semua</a>
+      <% categories.slice(0, 10).forEach(c => { %>
+        <a class="chip <%= (selectedCategory===c.category) ? "active" : "" %>"
+           href="/?category=<%= encodeURIComponent(c.category) %>">
+          <%= c.category %> <span class="muted">(<%= c.count %>)</span>
+        </a>
+      <% }) %>
+    </div>
+  </div>
+
+  <% if (todayQuotes.length === 0) { %>
+    <div class="empty">Belum ada quote khusus hari ini. Admin bisa set tanggal di dashboard.</div>
+  <% } else { %>
+    <div class="grid">
+      <% todayQuotes.forEach(q => { %>
+        <a class="card" href="/q/<%= q.id %>">
+          <div class="cat"><%= q.category %></div>
+          <div class="text">“<%= q.text %>”</div>
+          <div class="meta">
+            <span><%= q.author || "Anon" %></span>
+            <span class="muted"><%= q.created_at %></span>
+          </div>
+        </a>
+      <% }) %>
+    </div>
+  <% } %>
+</section>
+
+<section class="panel">
+  <div class="panel-head">
+    <h2>Terbaru</h2>
+    <div class="muted">Halaman <%= page %> / <%= totalPages %></div>
+  </div>
+
+  <div class="grid">
+    <% list.forEach(q => { %>
+      <a class="card" href="/q/<%= q.id %>">
+        <div class="cat"><%= q.category %></div>
+        <div class="text">“<%= q.text %>”</div>
+        <div class="meta">
+          <span><%= q.author || "Anon" %></span>
+          <span class="muted"><%= q.created_at %></span>
+        </div>
+      </a>
+    <% }) %>
+  </div>
+
+  <div class="pager">
+    <% if (page > 1) { %>
+      <a class="btn" href="/?category=<%= encodeURIComponent(selectedCategory||"") %>&page=<%= page-1 %>">← Prev</a>
+    <% } %>
+    <% if (page < totalPages) { %>
+      <a class="btn" href="/?category=<%= encodeURIComponent(selectedCategory||"") %>&page=<%= page+1 %>">Next →</a>
+    <% } %>
+  </div>
+</section>
