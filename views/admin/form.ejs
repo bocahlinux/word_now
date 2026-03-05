@@ -1,8 +1,15 @@
+<%
+  const selectedSet = new Set(selectedCategories || []);
+%>
+
 <section class="panel">
   <div class="panel-head">
     <h1><%= mode === "new" ? "Tambah Kata-kata" : "Edit Kata-kata" %></h1>
     <div class="actions">
       <a class="btn" href="/admin">Kembali</a>
+      <% if (mode === "edit") { %>
+        <a class="btn" href="/admin/preview/<%= q.id %>" target="_blank" rel="noreferrer">Preview</a>
+      <% } %>
     </div>
   </div>
 
@@ -14,8 +21,19 @@
     <label>Teks</label>
     <textarea name="text" rows="5" required><%= q.text %></textarea>
 
-    <label>Kategori</label>
-    <input name="category" value="<%= q.category %>" placeholder="gombalan / motivasi / galau / lucu / lainnya" />
+    <fieldset class="fieldgroup">
+      <legend>Kategori (boleh lebih dari 1)</legend>
+      <div class="check-grid">
+        <% categoryOptions.forEach((cat) => { %>
+          <label class="check option-check">
+            <input type="checkbox" name="categories" value="<%= cat %>" <%= selectedSet.has(cat) ? "checked" : "" %> />
+            <span><%= cat %></span>
+          </label>
+        <% }) %>
+      </div>
+      <label for="categories_custom">Kategori tambahan (pisahkan dengan koma)</label>
+      <input id="categories_custom" name="categories_custom" value="<%= categoriesCustom || '' %>" placeholder="misal: islami, semangat" />
+    </fieldset>
 
     <label>Author (opsional)</label>
     <input name="author" value="<%= q.author || '' %>" placeholder="Anon / Nama" />
@@ -23,11 +41,15 @@
     <label>Untuk Tanggal (opsional, YYYY-MM-DD)</label>
     <input name="for_date" value="<%= q.for_date || '' %>" placeholder="2026-03-05" />
 
+    <label>Jadwal Publish Otomatis (opsional)</label>
+    <input type="datetime-local" name="publish_at" value="<%= q.publish_at_input || '' %>" />
+    <div class="muted">Jika diisi waktu masa depan, quote akan otomatis publish saat waktunya tiba.</div>
+
     <label class="check">
       <input type="checkbox" name="is_published" <%= q.is_published ? "checked" : "" %> />
-      Publish
+      Publish sekarang
     </label>
 
-    <button class="btn primary" type="submit">Simpan</button>
+    <button class="btn primary" type="submit"><%= mode === "new" ? "Simpan" : "Update" %></button>
   </form>
 </section>

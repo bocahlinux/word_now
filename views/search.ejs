@@ -1,5 +1,7 @@
 <section class="hero">
   <h1>Cari Kata-kata</h1>
+  <p>Temukan kalimat yang pas untuk suasana hatimu hari ini.</p>
+
   <form class="searchbar" action="/search" method="get">
     <input name="q" value="<%= query %>" placeholder="Minimal 2 huruf..." />
     <button type="submit">Cari</button>
@@ -8,20 +10,20 @@
 
 <section class="panel">
   <div class="panel-head">
-    <h2>Hasil</h2>
+    <h2>Hasil Pencarian</h2>
     <div class="muted"><%= query ? `Query: "${query}"` : "Masukkan kata kunci." %></div>
   </div>
 
   <% if (!query || query.length < 2) { %>
     <div class="empty">Ketik minimal 2 huruf.</div>
   <% } else if (results.length === 0) { %>
-    <div class="empty">Tidak ketemu. Mungkin kamu cari “dia”, tapi dia cari yang lain.</div>
+    <div class="empty">Tidak ditemukan. Coba kata kunci lain yang lebih umum.</div>
   <% } else { %>
     <div class="grid">
       <% results.forEach(q => { %>
-        <a class="card" href="/q/<%= q.id %>">
-          <div class="cat"><%= q.category %></div>
-          <div class="text">“<%= q.text %>”</div>
+        <a class="card" href="/quote/<%= q.slug %>">
+          <div class="cat"><%= q.categories %></div>
+          <div class="text">"<%= q.text %>"</div>
           <div class="meta">
             <span><%= q.author || "Anon" %></span>
             <span class="muted"><%= q.created_at %></span>

@@ -1,17 +1,74 @@
+<%
+  const pageSeo = seo || {};
+  const seoTitle = pageSeo.title || ((typeof title !== "undefined" && title) ? title : "Kata Hari Ini");
+  const seoDescription = pageSeo.description || "Kumpulan quote harian.";
+  const seoCanonical = pageSeo.canonical || "";
+  const seoUrl = pageSeo.url || seoCanonical;
+  const seoImage = pageSeo.image || "";
+  const seoType = pageSeo.type || "website";
+  const seoKeywords = pageSeo.keywords || "quote, kata-kata";
+  const seoRobots = pageSeo.robots || "index,follow";
+%>
 <!doctype html>
 <html lang="id">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title><%= (typeof title !== "undefined" && title) ? title : "Kata Hari Ini" %></title>
+  <title><%= seoTitle %></title>
+  <meta name="description" content="<%= seoDescription %>" />
+  <meta name="keywords" content="<%= seoKeywords %>" />
+  <meta name="robots" content="<%= seoRobots %>" />
+  <% if (seoCanonical) { %><link rel="canonical" href="<%= seoCanonical %>" /><% } %>
+
+  <meta property="og:site_name" content="Kata Hari Ini" />
+  <meta property="og:title" content="<%= seoTitle %>" />
+  <meta property="og:description" content="<%= seoDescription %>" />
+  <meta property="og:type" content="<%= seoType %>" />
+  <% if (seoUrl) { %><meta property="og:url" content="<%= seoUrl %>" /><% } %>
+  <% if (seoImage) { %><meta property="og:image" content="<%= seoImage %>" /><% } %>
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="<%= seoTitle %>" />
+  <meta name="twitter:description" content="<%= seoDescription %>" />
+  <% if (seoImage) { %><meta name="twitter:image" content="<%= seoImage %>" /><% } %>
+
+  <% if (pageSeo.jsonLd) { %>
+    <script type="application/ld+json"><%- JSON.stringify(pageSeo.jsonLd) %></script>
+  <% } %>
+
+  <script>
+    (function () {
+      var pref = "auto";
+      try {
+        pref = localStorage.getItem("khi-theme") || "auto";
+      } catch (_) {}
+
+      if (pref !== "auto" && pref !== "light" && pref !== "dark") {
+        pref = "auto";
+      }
+
+      var resolved = pref;
+      if (pref === "auto") {
+        var hour = new Date().getHours();
+        resolved = (hour >= 18 || hour < 6) ? "dark" : "light";
+      }
+
+      document.documentElement.setAttribute("data-theme", resolved);
+    })();
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/style.css" />
 </head>
 <body>
-  <header class="top">
-    <a class="brand" href="/">✍️ Kata Hari Ini</a>
+  <header class="top shell">
+    <a class="brand" href="/">Kata Hari Ini</a>
     <nav class="nav">
       <a href="/random">Random</a>
       <a href="/search">Cari</a>
+      <a href="/bookmarks">Bookmark</a>
+      <button type="button" id="themeToggle" class="theme-toggle">Tema: Auto</button>
       <% if (isAdmin) { %>
         <a class="pill" href="/admin">Admin</a>
         <form method="post" action="/admin/logout" class="inline">
@@ -28,7 +85,66 @@
   </main>
 
   <footer class="foot">
-    Dibuat buat nyimpen gombalan & kata-kata. Database: SQLite. Server: Node.js.
+    Dibuat untuk menyimpan gombalan dan kata-kata. Copyright &copy; YauDah.
   </footer>
+
+  <script>
+    (function () {
+      var storageKey = "khi-theme";
+      var order = ["auto", "light", "dark"];
+      var labels = {
+        auto: "Tema: Auto",
+        light: "Tema: Terang",
+        dark: "Tema: Gelap"
+      };
+      var toggle = document.getElementById("themeToggle");
+      if (!toggle) return;
+
+      function getNightModeTheme() {
+        var hour = new Date().getHours();
+        return (hour >= 18 || hour < 6) ? "dark" : "light";
+      }
+
+      function getPreference() {
+        var pref = "auto";
+        try {
+          pref = localStorage.getItem(storageKey) || "auto";
+        } catch (_) {}
+
+        if (order.indexOf(pref) === -1) return "auto";
+        return pref;
+      }
+
+      function setPreference(pref) {
+        try {
+          localStorage.setItem(storageKey, pref);
+        } catch (_) {}
+      }
+
+      function applyTheme(pref) {
+        var effectiveTheme = pref === "auto" ? getNightModeTheme() : pref;
+        document.documentElement.setAttribute("data-theme", effectiveTheme);
+        toggle.dataset.preference = pref;
+        toggle.textContent = labels[pref];
+      }
+
+      var current = getPreference();
+      applyTheme(current);
+
+      toggle.addEventListener("click", function () {
+        var active = toggle.dataset.preference || "auto";
+        var index = order.indexOf(active);
+        var next = order[(index + 1) % order.length];
+        setPreference(next);
+        applyTheme(next);
+      });
+
+      window.setInterval(function () {
+        if ((toggle.dataset.preference || "auto") === "auto") {
+          applyTheme("auto");
+        }
+      }, 60000);
+    })();
+  </script>
 </body>
 </html>

@@ -1,24 +1,70 @@
 <%
   const pageTitle = selectedCategory ? `Kata: ${selectedCategory}` : "Kata Hari Ini";
+  const analytics = analyticsUser || { topQuote: null, topCategories: [], topSearches: [] };
 %>
 
 <section class="hero">
   <h1><%= pageTitle %></h1>
-  <p>Catatan kata-kata: gombalan, motivasi, galau, lucu… yang penting jangan PHP beneran.</p>
+  <p>Ruang untuk menyimpan kata-kata pilihan: gombalan, motivasi, galau, lucu, atau apa pun yang ingin kamu abadikan.</p>
 
   <form class="searchbar" action="/search" method="get">
-    <input name="q" placeholder="Cari kata-kata..." />
+    <input name="q" placeholder="Cari kata-kata favorit..." />
     <button type="submit">Cari</button>
   </form>
 </section>
 
+<section class="panel analytics-panel">
+  <div class="panel-head">
+    <h2>Mini Analytics Pengguna</h2>
+    <span class="badge badge-user">USER BADGE</span>
+  </div>
+
+  <div class="analytics-grid">
+    <article class="analytics-card">
+      <h3>Quote Paling Sering Dilihat</h3>
+      <% if (analytics.topQuote) { %>
+        <a class="analytics-link" href="/quote/<%= analytics.topQuote.slug || ("quote-" + analytics.topQuote.id) %>">"<%= analytics.topQuote.text %>"</a>
+        <div class="muted"><%= analytics.topQuote.total %> views</div>
+      <% } else { %>
+        <div class="muted">Belum ada data view.</div>
+      <% } %>
+    </article>
+
+    <article class="analytics-card">
+      <h3>Kategori Terpopuler</h3>
+      <% if (analytics.topCategories.length) { %>
+        <div class="chips">
+          <% analytics.topCategories.forEach((row) => { %>
+            <a class="chip" href="/?category=<%= encodeURIComponent(row.category) %>"><%= row.category %> (<%= row.total %>)</a>
+          <% }) %>
+        </div>
+      <% } else { %>
+        <div class="muted">Belum ada data kategori.</div>
+      <% } %>
+    </article>
+
+    <article class="analytics-card">
+      <h3>Pencarian Terbanyak</h3>
+      <% if (analytics.topSearches.length) { %>
+        <div class="chips">
+          <% analytics.topSearches.forEach((row) => { %>
+            <a class="chip" href="/search?q=<%= encodeURIComponent(row.query) %>"><%= row.query %> (<%= row.total %>)</a>
+          <% }) %>
+        </div>
+      <% } else { %>
+        <div class="muted">Belum ada data pencarian.</div>
+      <% } %>
+    </article>
+  </div>
+</section>
+
 <section class="panel">
   <div class="panel-head">
-    <h2>Quote of the Day — <span class="muted"><%= today %></span></h2>
+    <h2>Quote Hari Ini <span class="muted">(<%= today %>)</span></h2>
     <div class="chips">
       <a class="chip <%= selectedCategory ? "" : "active" %>" href="/">Semua</a>
       <% categories.slice(0, 10).forEach(c => { %>
-        <a class="chip <%= (selectedCategory===c.category) ? "active" : "" %>"
+        <a class="chip <%= (selectedCategory === c.category) ? "active" : "" %>"
            href="/?category=<%= encodeURIComponent(c.category) %>">
           <%= c.category %> <span class="muted">(<%= c.count %>)</span>
         </a>
@@ -27,13 +73,13 @@
   </div>
 
   <% if (todayQuotes.length === 0) { %>
-    <div class="empty">Belum ada quote khusus hari ini. Admin bisa set tanggal di dashboard.</div>
+    <div class="empty">Belum ada quote khusus hari ini. Admin bisa mengatur tanggal quote dari dashboard.</div>
   <% } else { %>
     <div class="grid">
       <% todayQuotes.forEach(q => { %>
-        <a class="card" href="/q/<%= q.id %>">
-          <div class="cat"><%= q.category %></div>
-          <div class="text">“<%= q.text %>”</div>
+        <a class="card" href="/quote/<%= q.slug %>">
+          <div class="cat"><%= q.categories %></div>
+          <div class="text">"<%= q.text %>"</div>
           <div class="meta">
             <span><%= q.author || "Anon" %></span>
             <span class="muted"><%= q.created_at %></span>
@@ -47,14 +93,14 @@
 <section class="panel">
   <div class="panel-head">
     <h2>Terbaru</h2>
-    <div class="muted">Halaman <%= page %> / <%= totalPages %></div>
+    <div class="muted">Halaman <%= page %> dari <%= totalPages %></div>
   </div>
 
   <div class="grid">
     <% list.forEach(q => { %>
-      <a class="card" href="/q/<%= q.id %>">
-        <div class="cat"><%= q.category %></div>
-        <div class="text">“<%= q.text %>”</div>
+      <a class="card" href="/quote/<%= q.slug %>">
+        <div class="cat"><%= q.categories %></div>
+        <div class="text">"<%= q.text %>"</div>
         <div class="meta">
           <span><%= q.author || "Anon" %></span>
           <span class="muted"><%= q.created_at %></span>
@@ -65,10 +111,11 @@
 
   <div class="pager">
     <% if (page > 1) { %>
-      <a class="btn" href="/?category=<%= encodeURIComponent(selectedCategory||"") %>&page=<%= page-1 %>">← Prev</a>
+      <a class="btn" href="/?category=<%= encodeURIComponent(selectedCategory || "") %>&page=<%= page - 1 %>">Prev</a>
     <% } %>
     <% if (page < totalPages) { %>
-      <a class="btn" href="/?category=<%= encodeURIComponent(selectedCategory||"") %>&page=<%= page+1 %>">Next →</a>
+      <a class="btn" href="/?category=<%= encodeURIComponent(selectedCategory || "") %>&page=<%= page + 1 %>">Next</a>
     <% } %>
   </div>
 </section>
+

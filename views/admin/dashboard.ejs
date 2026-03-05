@@ -1,4 +1,9 @@
-<section class="panel">
+<%
+  const userAnalytics = analyticsUser || { topQuote: null, topCategories: [], topSearches: [] };
+  const adminAnalytics = analyticsAdmin || { topQuote: null, topCategories: [], topSearches: [] };
+%>
+
+<section class="panel analytics-panel">
   <div class="panel-head">
     <h1>Dashboard Admin</h1>
     <div class="actions">
@@ -7,21 +12,84 @@
     </div>
   </div>
 
+  <div class="analytics-grid">
+    <article class="analytics-card">
+      <div class="analytics-head">
+        <h3>Analytics Pengguna</h3>
+        <span class="badge badge-user">USER BADGE</span>
+      </div>
+      <% if (userAnalytics.topQuote) { %>
+        <a class="analytics-link" href="/quote/<%= userAnalytics.topQuote.slug || ("quote-" + userAnalytics.topQuote.id) %>">Top quote: "<%= userAnalytics.topQuote.text %>"</a>
+        <div class="muted"><%= userAnalytics.topQuote.total %> views</div>
+      <% } else { %>
+        <div class="muted">Belum ada data view user.</div>
+      <% } %>
+      <div class="chips">
+        <% userAnalytics.topCategories.forEach((row) => { %>
+          <span class="chip"><%= row.category %> (<%= row.total %>)</span>
+        <% }) %>
+      </div>
+      <div class="chips">
+        <% userAnalytics.topSearches.forEach((row) => { %>
+          <span class="chip"><%= row.query %> (<%= row.total %>)</span>
+        <% }) %>
+      </div>
+    </article>
+
+    <article class="analytics-card">
+      <div class="analytics-head">
+        <h3>Analytics Admin</h3>
+        <span class="badge badge-admin">ADMIN BADGE</span>
+      </div>
+      <% if (adminAnalytics.topQuote) { %>
+        <a class="analytics-link" href="/admin/preview/<%= adminAnalytics.topQuote.id %>">Top preview: "<%= adminAnalytics.topQuote.text %>"</a>
+        <div class="muted"><%= adminAnalytics.topQuote.total %> views</div>
+      <% } else { %>
+        <div class="muted">Belum ada data aktivitas admin.</div>
+      <% } %>
+      <div class="chips">
+        <% adminAnalytics.topCategories.forEach((row) => { %>
+          <span class="chip"><%= row.category %> (<%= row.total %>)</span>
+        <% }) %>
+      </div>
+      <div class="chips">
+        <% adminAnalytics.topSearches.forEach((row) => { %>
+          <span class="chip"><%= row.query %> (<%= row.total %>)</span>
+        <% }) %>
+      </div>
+    </article>
+  </div>
+</section>
+
+<section class="panel">
+  <div class="panel-head">
+    <h2>Daftar Quote</h2>
+    <div class="muted">Maksimal 200 data terbaru.</div>
+  </div>
+
   <div class="table">
     <div class="row head">
-      <div>ID</div><div>Kategori</div><div>Tanggal</div><div>Publish</div><div>Teks</div><div>Aksi</div>
+      <div>ID</div><div>Kategori</div><div>Status</div><div>Jadwal</div><div>Teks / Slug</div><div>Aksi</div>
     </div>
     <% rows.forEach(q => { %>
+      <% const statusText = q.is_published ? "Aktif" : (q.publish_at ? "Terjadwal" : "Draft"); %>
       <div class="row">
         <div><%= q.id %></div>
-        <div><%= q.category %></div>
-        <div class="muted"><%= q.for_date || "-" %></div>
-        <div><%= q.is_published ? "✅" : "⛔" %></div>
-        <div class="clip">“<%= q.text %>”</div>
+        <div><%= q.categories %></div>
+        <div><%= statusText %></div>
+        <div class="muted"><%= q.publish_at || "-" %></div>
+        <div class="clip">
+          <div>"<%= q.text %>"</div>
+          <div class="muted"><%= q.slug || "-" %></div>
+        </div>
         <div class="actions">
           <a class="btn sm" href="/admin/edit/<%= q.id %>">Edit</a>
+          <a class="btn sm" href="/admin/preview/<%= q.id %>">Preview</a>
+          <% if (q.is_published && q.slug) { %>
+            <a class="btn sm" href="/quote/<%= q.slug %>" target="_blank" rel="noreferrer">Lihat</a>
+          <% } %>
           <form method="post" action="/admin/toggle/<%= q.id %>" class="inline">
-            <button class="btn sm" type="submit"><%= q.is_published ? "Unpub" : "Pub" %></button>
+            <button class="btn sm" type="submit"><%= q.is_published ? "Draft" : "Publish" %></button>
           </form>
           <form method="post" action="/admin/delete/<%= q.id %>" class="inline" onsubmit="return confirm('Hapus item ini?')">
             <button class="btn sm danger" type="submit">Hapus</button>
@@ -31,3 +99,4 @@
     <% }) %>
   </div>
 </section>
+
